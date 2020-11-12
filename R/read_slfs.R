@@ -1,28 +1,29 @@
-# ---------------------------------------------------------------------------------------
-# TITLE: `read_slfs`
+# --------------------------------------------------------------------------------------- TITLE: `read_slfs`
 # AUTHOR: Anthony Nguyen
 # CONTACT: anthony.nguyen@hotmail.com
-# LAST UPDATE: 29 April 2020
+# LAST UPDATE: 12 November 2020
 # 
 # DESCRIPTION: These functions can be used to read in the data files (CSV),
 # variable labels (TXT), and value labels (TXT) for the Swiss Labor Force survey
 # (SLFS/ESPA/SAKE) data issued by the Swiss FSO. Both the variable and value
-# label files are available as SAS and SPSS formatted .txt files. These functions
-# to read in the label files work for either format style.
-# ---------------------------------------------------------------------------------------
+# label files are available as SAS and SPSS formatted TXT files. These functions
+# to read in the label files work for either format style. 
+#
+# The functions depend on These functions depend on a number of functions from
+# the following packages: readr, stringr, tidyr, magrittr, and tibble. Those
+# packages can be loaded individually, or they can all be called together under
+# the tidyverse package.
+# --------------------------------------------------------------------------------------
 
 if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
-if(!require(haven)) install.packages("haven", repos = "http://cran.us.r-project.org")
-if(!require(labelled)) install.packages("labelled", repos = "http://cran.us.r-project.org")
-
 
 read_slfs_var <- function(varlab){
 #this function returns a named list of variables that can be used with the
 #`labelled` package
-    if(str_detect(varlab, "VAR-LABEL-")) {
+    if(stringr::str_detect(varlab, "VAR-LABEL-")) {
         
-        if(str_detect(varlab, "-SAS")) {
-            varlist <- read_delim(varlab, 
+        if(stringr::str_detect(varlab, "-SAS")) {
+            varlist <- readr::read_delim(varlab, 
                                  delim = " = ", 
                                  col_names = FALSE, 
                                  col_types = cols(X1 = col_character(),
@@ -38,7 +39,7 @@ read_slfs_var <- function(varlab){
             #the last line of the SPSS final throws throws up a warning before
             #we can remove it
             varlist <- suppressWarnings(
-                       read_delim(varlab, 
+                       readr::read_delim(varlab, 
                                   delim = " ", 
                                   col_names = FALSE, 
                                   skip = 1,
@@ -68,7 +69,7 @@ read_slfs_val <- function(valuelab) {
     if (str_detect(valuelab, "FORMAT-") | str_detect(valuelab, "VALUE-LABEL-")) {
         
         if(str_detect(valuelab, "-SAS")) {
-            value_df <- read_fwf(valuelab, 
+            value_df <- readr::read_fwf(valuelab, 
                                     fwf_positions(c(1, 9, 29, 43, 49), 
                                                   c(7, 25, 43, 47, NA), 
                                                   c("junk", "var", "val", "delim", "val_lab")),
@@ -80,7 +81,7 @@ read_slfs_val <- function(valuelab) {
                                     locale = locale(encoding = "Latin1"),
                                     trim_ws = TRUE)
             
-            value_df <- value_df %>% fill(var, .direction="down")
+            value_df <- value_df %>% tidyr::fill(var, .direction="down")
             value_df$var <- value_df$var %>% substr(., 1, nchar(.)-1) #strip extra char from var
             value_df$val_lab <- value_df$val_lab %>% str_replace_all("\"", "")
             
@@ -99,7 +100,7 @@ read_slfs_val <- function(valuelab) {
             
             value_df <- value_df %>% fill(var, .direction="down")
             value_df$val_lab <- value_df$val_lab %>% str_replace_all("\"", "")
-            value_df <- value_df %>% drop_na(val) #drop final row 
+            value_df <- value_df %>% tidyr::drop_na(val) #drop final row 
             
         }
         
@@ -107,7 +108,7 @@ read_slfs_val <- function(valuelab) {
         names(valuelist) <- value_df %>% group_keys(var) %>% pull
         
         valuelist <- sapply(valuelist, function(x) {
-            x %>% select(val_lab, val) %>% deframe
+            x %>% select(val_lab, val) %>% tibble::deframe
                 }
             )
         }
@@ -189,7 +190,7 @@ read_slfs <- function(data, varlab=NULL, valuelab=NULL) {
                 print("data contains less variables than value label file")
                 print("the following variable value labels are unused and will be ignored:")
                 
-                df_cols <- names(df) #get names of df cols
+                df_cols <- names(df) 
                 missing_data_val_index <- !(names(valuelabs) %in% df_cols) 
                 print(names(valuelabs[missing_data_val_index]))
                 
